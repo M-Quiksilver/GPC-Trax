@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Padel — JEBMACS vs GPC (calendar, upcoming, history)</title>
+  <style>
+    /* Dark vivid GPC-inspired theme */
+    :root{
+      --bg-top: #dff7e8;
+      --bg-bottom: #eefef2;
+      --card:#ffffff;
+      --gpc-green: #0f8b46;
+      --gpc-dark:  #054a2a;
+      --gpc-yellow:#e6b600;
+      --muted:#374151;
+      --danger:#dc2626;
+      --glass: rgba(255,255,255,0.85);
+      --sets-badge-bg: rgba(15,139,70,0.12);
+      --sets-badge-border: rgba(15,139,70,0.28);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body{
+      margin:0; padding:20px;
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      color:#022815;
+    }
+
+    .container{ max-width:1100px; margin:0 auto; }
+    header{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+    h1{ margin:0; font-size:1.3rem; color:var(--gpc-dark); }
+    .small{ font-size:0.86rem; color:var(--muted); }
+    .card{ background:var(--card); border-radius:10px; padding:14px; box-shadow: 0 10px 28px rgba(6, 40, 20, 0.08); margin-bottom:14px; }
+
+    /* teams */
+    .teams-inline{ display:flex; gap:18px; align-items:center; }
+    .team{ display:flex; gap:10px; align-items:center; }
+    .team img{ width:64px; height:64px; object-fit:contain; border-radius:8px; border:2px solid rgba(5,74,42,0.06); background:white; padding:6px; }
+
+    /* controls */
+    .controls{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+    /* calendar */
+    .calendar-wrap{ margin-top:12px; }
+    .cal-controls{ display:flex; gap:8px; align-items:center; justify-content:space-between; margin-bottom:8px; }
+    .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; }
+    .day{ background:#fff; border-radius:8px; padding:8px; min-height:84px; box-shadow:0 2px 8px rgba(2,6,23,0.04); position:relative; }
+    .day.dim{ opacity:0.62; }
+    .date-num{ font-weight:700; margin-bottom:6px; }
+    .pill{ display:block; padding:6px 8px; border-radius:8px; margin-bottom:6px; cursor:pointer; font-size:0.88rem; font-weight:700; }
+    .pill.unplayed{ background: linear-gradient(90deg, rgba(15,139,70,0.12), rgba(230,182,0,0.02)); border:1px solid rgba(5,74,42,0.08); color:var(--gpc-dark); }
+    .pill.played{ background:#f9fafb; border:1px solid #e6eef0; color:#475569; opacity:0.9; }
+
+    /* upcoming pills */
+    .pill.event{ background: linear-gradient(90deg, rgba(14,90,45,0.12), rgba(242,194,0,0.05)); border:1px solid rgba(10,107,60,0.06); }
+
+    /* forms & tables */
+    form .grid{ display:grid; gap:10px; }
+    label{ display:block; font-size:0.9rem; color:var(--muted); margin-bottom:6px; }
+    input[type="text"], input[type="date"], input[type="number"], textarea, select{
+      width:100%; padding:9px; border-radius:8px; border:1px solid rgba(5,74,42,0.06); background:#fff; font-size:0.95rem;
+    }
+    input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+    input[type=number]{ -moz-appearance:textfield; }
+
+    .actions{ display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+    button{ background:var(--gpc-green); color:white; padding:9px 12px; border-radius:8px; border:0; cursor:pointer; font-weight:700; }
+    button.secondary{ background:transparent; color:var(--gpc-dark); border:1px solid rgba(5,74,42,0.12); padding:8px 10px; }
+    button.danger{ background:var(--danger); }
+
+    table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:0.95rem; }
+    th, td{ padding:8px 10px; border-bottom:1px solid rgba(5,74,42,0.06); vertical-align:top; text-align:left; }
+
+    /* compact inputs for sets */
+    .score-table{ border-collapse:collapse; width:100%; max-width:720px; margin-top:6px; }
+    .score-table th, .score-table td{ border:1px solid rgba(5,74,42,0.06); padding:6px; text-align:center; }
+    .score-input{ width:36px; padding:6px; text-align:center; border-radius:6px; border:1px solid rgba(5,74,42,0.06); font-weight:700; }
+
+    /* per-row sets-won badge */
+    .sets-won-badge{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:6px 8px; border-radius:8px; background:var(--sets-badge-bg);
+      border:1px solid var(--sets-badge-border); color:var(--gpc-dark); font-weight:800; min-width:28px; height:32px; line-height:1;
+    }
+
+    .winner-badge{ font-weight:900; color:var(--gpc-dark); background:linear-gradient(90deg, rgba(15,139,70,0.12), rgba(230,182,0,0.06)); padding:6px 10px; border-radius:10px; display:inline-block; }
+    .winner-star::after{ content: ' *'; color:var(--gpc-yellow); font-weight:900; margin-left:4px; }
+
+    .season-badge{ display:inline-block; padding:4px 8px; border-radius:999px; background:rgba(230,182,0,0.12); color:var(--gpc-dark); font-weight:700; font-size:0.85rem; margin-top:6px; }
+
+    .events-list{ margin-top:8px; display:flex; flex-direction:column; gap:8px; }
+    .event-row{ display:flex; justify-content:space-between; gap:8px; align-items:center; padding:8px; border-radius:8px; background:linear-gradient(180deg,#fff,#fbfffb); border:1px solid rgba(5,74,42,0.03); }
+    .event-meta{ display:flex; gap:8px; align-items:center; }
+
+    @media (max-width:820px){
+      .teams-inline{ flex-direction:column; align-items:flex-start; gap:8px; }
+      .team img{ width:54px; height:54px; }
+      .score-input{ width:32px; }
+      .month-grid{ grid-template-columns:repeat(7,1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <div class="teams-inline">
+          <div class="team">
+            <img src="jebmacs.png" alt="JEBMACS logo">
+            <div><strong>JEBMACS</strong><div class="small">Janne & Max</div></div>
+          </div>
+          <div class="team">
+            <img src="gpc.png" alt="GPC logo">
+            <div><strong>GPC</strong><div class="small">Miiku & Timi</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <label class="small" for="season-select">Season</label>
+        <select id="season-select"></select>
+        <button id="new-season" class="secondary">New season</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <div style="font-weight:800; color:var(--gpc-dark)">Season record</div>
+        <div id="season-record" class="small">JEB: 0-0 • GPC: 0-0</div>
+        <div style="width:24px"></div>
+        <div style="font-weight:800; color:var(--gpc-dark)">All-time</div>
+        <div id="alltime-record" class="small">JEB: 0-0 • GPC: 0-0</div>
+
+        <div style="margin-left:auto" class="small">
+          View:
+          <select id="view-filter" title="Filter matches shown (affects history and calendar)">
+            <option value="all">All seasons</option>
+            <option value="current">Only current season</option>
+          </select>
+          <input id="search-box" placeholder="Search notes, paidBy, season or date" style="padding:8px;border-radius:8px;border:1px solid rgba(5,74,42,0.06);margin-left:8px" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="card calendar-wrap">
+      <div class="cal-controls">
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="prev-month" class="secondary">◀</button>
+          <div id="month-label" class="small" style="min-width:160px;text-align:center;font-weight:800"></div>
+          <button id="next-month" class="secondary">▶</button>
+          <button id="today-btn" class="secondary">Today</button>
+        </div>
+        <div class="small">Click a date to add an upcoming match / event; click an item to edit or record result.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:6px">
+        <!-- Week starts on Monday -->
+        <div class="small" style="text-align:center">Mon</div>
+        <div class="small" style="text-align:center">Tue</div>
+        <div class="small" style="text-align:center">Wed</div>
+        <div class="small" style="text-align:center">Thu</div>
+        <div class="small" style="text-align:center">Fri</div>
+        <div class="small" style="text-align:center">Sat</div>
+        <div class="small" style="text-align:center">Sun</div>
+      </div>
+
+      <div id="month-grid" class="month-grid"></div>
+    </section>
+
+    <!-- Upcoming matches & events -->
+    <section class="card" id="upcoming-section">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0">Upcoming matches & events</h3>
+        <div>
+          <button id="add-upcoming" class="secondary">Add upcoming match / event</button>
+        </div>
+      </div>
+
+      <div id="upcoming-form" style="display:none;margin-top:10px">
+        <form id="evt-form" class="grid">
+          <input type="hidden" id="evt-id" />
+          <div>
+            <label for="evt-date">Date</label>
+            <input id="evt-date" type="date" required />
+          </div>
+          <div>
+            <label for="evt-title">Title</label>
+            <input id="evt-title" type="text" placeholder="e.g. Practice or Friendly match" />
+          </div>
+          <div>
+            <label for="evt-notes">Notes</label>
+            <input id="evt-notes" type="text" placeholder="Optional" />
+          </div>
+          <div class="actions">
+            <button id="save-evt">Save upcoming</button>
+            <button id="save-evt-and-open" class="secondary">Save & open Record Match</button>
+            <button id="cancel-evt" type="button" class="secondary">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <div id="upcoming-list" class="events-list" style="margin-top:12px"></div>
+    </section>
+
+    <!-- Record Match (sets) -->
+    <section class="card">
+      <h2 style="margin:0 0 8px 0">Record Match (sets)</h2>
+
+      <form id="match-form" class="grid" aria-labelledby="match-form">
+        <input type="hidden" id="match-id" />
+
+        <div>
+          <label for="date">Date</label>
+          <input id="date" type="date" required />
+        </div>
+
+        <div>
+          <label>Score (games per set)</label>
+          <table class="score-table" aria-label="Set scores">
+            <thead>
+              <tr><th>Teams</th><th>Set 1</th><th>Set 2</th><th>Set 3</th><th>Sets Won</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="text-align:left"><strong id="label-jeb">JEBMACS</strong></td>
+                <td><input class="score-input" id="jeb-s1" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><input class="score-input" id="jeb-s2" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><input class="score-input" id="jeb-s3" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><span id="jeb-sets-won" class="sets-won-badge">0</span></td>
+              </tr>
+              <tr>
+                <td style="text-align:left"><strong id="label-gpc">GPC</strong></td>
+                <td><input class="score-input" id="gpc-s1" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><input class="score-input" id="gpc-s2" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><input class="score-input" id="gpc-s3" type="number" min="0" inputmode="numeric" pattern="[0-9]*" /></td>
+                <td><span id="gpc-sets-won" class="sets-won-badge">0</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="small" style="margin-top:6px">Type scores directly (no spinners). Boxes are narrow for single-digit entry.</div>
+        </div>
+
+        <div>
+          <label for="winner">Winner (auto)</label>
+          <input id="winner" type="text" readonly placeholder="Auto-detected" />
+        </div>
+
+        <div>
+          <label for="paidBy">Court paid by (optional)</label>
+          <select id="paidBy"><option value="">(none)</option><option>Janne</option><option>Max</option><option>Miiku</option><option>Timi</option></select>
+        </div>
+
+        <div>
+          <label for="notes">Notes</label>
+          <input id="notes" type="text" placeholder="Optional notes" />
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="save-btn">Save match</button>
+          <button type="button" id="clear-btn" class="secondary">Clear</button>
+          <button type="button" id="export-csv" class="secondary">Export CSV</button>
+          <div id="stored-count" class="small" style="margin-left:auto"></div>
+        </div>
+      </form>
+    </section>
+
+    <!-- History -->
+    <section class="card">
+      <h2 style="margin:0 0 8px 0">Matches (history)</h2>
+      <div class="small">This table shows match history across seasons (filtered by View/Search).</div>
+
+      <table id="matches-table" aria-live="polite">
+        <thead>
+          <tr>
+            <th style="width:150px">Date (season)</th>
+            <th>Score (sets)</th>
+            <th style="width:140px">Winner</th>
+            <th style="width:120px">Paid by</th>
+            <th style="width:190px">Notes</th>
+            <th style="width:120px"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    // storage keys
+    const LS_MATCHES = 'padel.matches.v4.seasoned';
+    const LS_SEASONS = 'padel.seasons.v1';
+    const LS_EVENTS = 'padel.events.v1';
+    const LS_LAST_SEASON = 'padel.lastSeasonId';
+
+    const TEAMS = { JEB: { id: 'JEBMACS', label: 'JEBMACS' }, GPC: { id: 'GPC', label: 'GPC' } };
+
+    // in-memory state
+    let matches = [];
+    let seasons = [];
+    let events = []; // upcoming events
+    let currentSeasonId = null;
+
+    // calendar state
+    let viewYear = new Date().getFullYear();
+    let viewMonth = new Date().getMonth(); // 0..11
+
+    // UI refs
+    const seasonSelect = document.getElementById('season-select');
+    const viewFilter = document.getElementById('view-filter');
+    const searchBox = document.getElementById('search-box');
+
+    // util: pad
+    function pad(n){ return String(n).padStart(2,'0'); }
+
+    // Local ISO date string from local Y,M,D (no timezone shift)
+    function isoDateFromParts(y,m,d){ // m 0..11
+      return `${y}-${pad(m+1)}-${pad(d)}`;
+    }
+
+    // format for display dd-mm-yyyy
+    function displayDate(iso){
+      if(!iso) return '';
+      const [y,m,d] = iso.split('-');
+      return `${d}-${m}-${y}`;
+    }
+
+    // generate uid
+    function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+    // load & save storage
+    function loadAll(){
+      try { matches = JSON.parse(localStorage.getItem(LS_MATCHES)) || []; } catch(e){ matches = []; }
+      try { seasons = JSON.parse(localStorage.getItem(LS_SEASONS)) || []; } catch(e){ seasons = []; }
+      try { events = JSON.parse(localStorage.getItem(LS_EVENTS)) || []; } catch(e){ events = []; }
+
+      if(seasons.length === 0){
+        const id = uid();
+        seasons.push({ id, name: 'Default', createdAt: new Date().toISOString() });
+      }
+      const last = localStorage.getItem(LS_LAST_SEASON);
+      if(last && seasons.some(s=>s.id===last)) currentSeasonId = last;
+      if(!currentSeasonId) currentSeasonId = seasons[0].id;
+    }
+
+    function saveAll(){
+      localStorage.setItem(LS_MATCHES, JSON.stringify(matches));
+      localStorage.setItem(LS_SEASONS, JSON.stringify(seasons));
+      localStorage.setItem(LS_EVENTS, JSON.stringify(events));
+      localStorage.setItem(LS_LAST_SEASON, currentSeasonId || '');
+    }
+
+    // populate seasons dropdown
+    function populateSeasonsUI(){
+      seasonSelect.innerHTML = '';
+      seasons.slice().sort((a,b)=> a.createdAt.localeCompare(b.createdAt)).forEach(s => {
+        const o = document.createElement('option'); o.value = s.id; o.textContent = s.name; seasonSelect.appendChild(o);
+      });
+      seasonSelect.value = currentSeasonId;
+    }
+
+    // create new season
+    document.getElementById('new-season').addEventListener('click', () => {
+      const name = prompt('New season name (free text):');
+      if(!name) return;
+      const id = uid();
+      seasons.push({ id, name: name.trim(), createdAt: new Date().toISOString() });
+      currentSeasonId = id;
+      saveAll();
+      populateSeasonsUI();
+      renderAll();
+    });
+
+    seasonSelect.addEventListener('change', e => {
+      currentSeasonId = e.target.value;
+      localStorage.setItem(LS_LAST_SEASON, currentSeasonId);
+      renderAll();
+    });
+
+    // search & filter
+    viewFilter.addEventListener('change', ()=> { renderAll(); renderCalendar(); });
+    let searchTimer = null;
+    searchBox.addEventListener('input', ()=> {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(()=> { renderAll(); renderCalendar(); }, 220);
+    });
+
+    function filterMatchesAndEvents(){
+      const view = viewFilter.value; // 'all' / 'current'
+      const q = (searchBox.value || '').trim().toLowerCase();
+      // filter matches:
+      const filteredMatches = matches.filter(m => {
+        if(view === 'current' && m.seasonId !== currentSeasonId) return false;
+        if(!q) return true;
+        const season = seasons.find(s => s.id === m.seasonId);
+        const seasonName = (season && season.name) ? season.name.toLowerCase() : '';
+        return (m.notes && m.notes.toLowerCase().includes(q)) ||
+               (m.paidBy && m.paidBy.toLowerCase().includes(q)) ||
+               (seasonName && seasonName.includes(q)) ||
+               (m.date && displayDate(m.date).includes(q)) ||
+               (m.winner && m.winner.toLowerCase().includes(q));
+      });
+      const filteredEvents = events.filter(ev => {
+        if(view === 'current' && ev.seasonId !== currentSeasonId) return false;
+        if(!q) return true;
+        const season = seasons.find(s => s.id === ev.seasonId);
+        const seasonName = (season && season.name) ? season.name.toLowerCase() : '';
+        return (ev.title && ev.title.toLowerCase().includes(q)) ||
+               (ev.notes && ev.notes.toLowerCase().includes(q)) ||
+               (seasonName && seasonName.includes(q)) ||
+               (ev.date && displayDate(ev.date).includes(q));
+      });
+      return { filteredMatches, filteredEvents };
+    }
+
+    // ---------- Calendar rendering ----------
+    function setMonthLabel(){
+      const dt = new Date(viewYear, viewMonth, 1);
+      document.getElementById('month-label').textContent = dt.toLocaleString(undefined,{month:'long',year:'numeric'});
+    }
+
+    document.getElementById('prev-month').addEventListener('click', ()=>{ viewMonth--; if(viewMonth<0){ viewMonth=11; viewYear--; } renderCalendar(); });
+    document.getElementById('next-month').addEventListener('click', ()=>{ viewMonth++; if(viewMonth>11){ viewMonth=0; viewYear++; } renderCalendar(); });
+    document.getElementById('today-btn').addEventListener('click', ()=>{ const now=new Date(); viewYear=now.getFullYear(); viewMonth=now.getMonth(); renderCalendar(); });
+
+    function renderCalendar(){
+      setMonthLabel();
+      const grid = document.getElementById('month-grid');
+      grid.innerHTML = '';
+
+      // first day (local)
+      const first = new Date(viewYear, viewMonth, 1);
+      // Monday-first: compute offset where Monday=0
+      const startDay = (first.getDay() + 6) % 7; // Monday=0, Sunday=6
+      const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+      // filler days before month start
+      for(let i=0;i<startDay;i++){ const el=document.createElement('div'); el.className='day'; el.style.background='#fafafa'; grid.appendChild(el); }
+
+      const { filteredMatches, filteredEvents } = filterMatchesAndEvents();
+
+      for(let d=1; d<=daysInMonth; d++){
+        const iso = isoDateFromParts(viewYear, viewMonth, d);
+        const dayDiv = document.createElement('div'); dayDiv.className='day';
+        const dateNum = document.createElement('div'); dateNum.className='date-num'; dateNum.textContent = d; dayDiv.appendChild(dateNum);
+
+        // show events first
+        filteredEvents.filter(ev => ev.date === iso).slice(0,3).forEach(ev => {
+          const pill = document.createElement('div'); pill.className = 'pill event';
+          pill.textContent = ev.title || '(event)';
+          pill.title = ev.notes || '';
+          pill.onclick = evClickHandler(ev);
+          dayDiv.appendChild(pill);
+        });
+
+        // show matches
+        filteredMatches.filter(m => m.date === iso).slice(0,3).forEach(m => {
+          const pill = document.createElement('div'); pill.className = 'pill ' + (m.winner ? 'played' : 'unplayed');
+          const label = m.winner ? (m.winner === TEAMS.JEB.id ? 'JEB*' : 'GPC*') : 'Match';
+          pill.textContent = `${label} ${m.jebSets ?? ''}-${m.gpcSets ?? ''}`;
+          pill.onclick = matchClickHandler(m);
+          dayDiv.appendChild(pill);
+        });
+
+        // dim past days
+        const dayDate = new Date(viewYear, viewMonth, d);
+        const today = new Date(); today.setHours(0,0,0,0);
+        if(dayDate < today) dayDiv.classList.add('dim');
+
+        // clicking an empty area opens upcoming-event form for that date
+        dayDiv.addEventListener('click', ()=> openNewEventForDate(iso));
+        grid.appendChild(dayDiv);
+      }
+    }
+
+    function matchClickHandler(m){
+      return function(ev){ ev.stopPropagation(); editMatch(m.id); };
+    }
+    function evClickHandler(evItem){
+      return function(ev){ ev.stopPropagation(); editEvent(evItem.id); };
+    }
+
+    // ---------- Upcoming events UI ----------
+    const upcomingForm = document.getElementById('upcoming-form');
+    const evtForm = document.getElementById('evt-form');
+
+    document.getElementById('add-upcoming').addEventListener('click', () => {
+      showEventForm(); // empty
+    });
+
+    function showEventForm(evt){
+      upcomingForm.style.display = '';
+      if(evt){
+        document.getElementById('evt-id').value = evt.id;
+        document.getElementById('evt-date').value = evt.date || '';
+        document.getElementById('evt-title').value = evt.title || '';
+        document.getElementById('evt-notes').value = evt.notes || '';
+      } else {
+        document.getElementById('evt-id').value = '';
+        document.getElementById('evt-form').reset();
+      }
+    }
+    document.getElementById('cancel-evt').addEventListener('click', () => { upcomingForm.style.display = 'none'; });
+
+    // open new event for date (called from calendar click)
+    function openNewEventForDate(isoDate){
+      showEventForm();
+      document.getElementById('evt-date').value = isoDate;
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    // save upcoming event
+    document.getElementById('save-evt').addEventListener('click', (e)=>{
+      e.preventDefault();
+      const id = document.getElementById('evt-id').value || uid();
+      const date = document.getElementById('evt-date').value;
+      const title = document.getElementById('evt-title').value.trim() || 'Upcoming';
+      const notes = document.getElementById('evt-notes').value.trim();
+      const evt = { id, date, title, notes, seasonId: currentSeasonId, createdAt: new Date().toISOString() };
+      const idx = events.findIndex(x=>x.id===id);
+      if(idx>=0) events[idx]=evt; else events.push(evt);
+      saveAll();
+      upcomingForm.style.display = 'none';
+      renderAll();
+    });
+
+    // save upcoming and open record match (pre-fill record form)
+    document.getElementById('save-evt-and-open').addEventListener('click', (e)=>{
+      e.preventDefault();
+      const id = document.getElementById('evt-id').value || uid();
+      const date = document.getElementById('evt-date').value;
+      const title = document.getElementById('evt-title').value.trim() || 'Upcoming';
+      const notes = document.getElementById('evt-notes').value.trim();
+      const evt = { id, date, title, notes, seasonId: currentSeasonId, createdAt: new Date().toISOString() };
+      const idx = events.findIndex(x=>x.id===id);
+      if(idx>=0) events[idx]=evt; else events.push(evt);
+      saveAll();
+      upcomingForm.style.display = 'none';
+      // open match form with date pre-filled
+      openRecordFormForDate(date);
+      renderAll();
+    });
+
+    function editEvent(id){
+      const ev = events.find(x => x.id === id);
+      if(!ev) return;
+      showEventForm(ev);
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    function renderUpcomingList(){
+      const list = document.getElementById('upcoming-list');
+      list.innerHTML = '';
+      // show future events (>= today) first, then past
+      const ordered = events.slice().sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.createdAt||'').localeCompare(b.createdAt||''));
+      if(ordered.length === 0){
+        list.innerHTML = '<div class="small">No upcoming matches or events.</div>';
+        return;
+      }
+      ordered.forEach(ev=>{
+        const row = document.createElement('div'); row.className = 'event-row';
+        const meta = document.createElement('div'); meta.className = 'event-meta';
+        const date = document.createElement('div'); date.style.fontWeight='700'; date.textContent = displayDate(ev.date || '');
+        const title = document.createElement('div'); title.innerHTML = `<div style="font-weight:700">${ev.title || ''}</div><div class="small">${ev.notes || ''}</div>`;
+        meta.appendChild(date); meta.appendChild(title);
+        // actions
+        const actions = document.createElement('div'); actions.style.display='flex'; actions.style.gap='6px';
+        const rec = document.createElement('button'); rec.className='secondary'; rec.textContent='Record result'; rec.onclick = ()=> { openRecordFormForDate(ev.date); };
+        const edit = document.createElement('button'); edit.className='secondary'; edit.textContent='Edit'; edit.onclick = ()=> editEvent(ev.id);
+        const del = document.createElement('button'); del.className='danger'; del.textContent='Delete'; del.onclick = ()=> { if(confirm('Delete upcoming event?')) { events = events.filter(x=>x.id!==ev.id); saveAll(); renderAll(); } };
+        actions.appendChild(rec); actions.appendChild(edit); actions.appendChild(del);
+        row.appendChild(meta); row.appendChild(actions);
+        list.appendChild(row);
+      });
+    }
+
+    // ---------- Matches (record form) ----------
+    function openRecordFormForDate(dateIso){
+      clearMatchForm();
+      document.getElementById('date').value = dateIso;
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    // Score handling
+    function parseScoreVal(id){
+      const v = document.getElementById(id).value;
+      return v === '' ? null : Number(v);
+    }
+
+    function computeSetsAndWinnerFromInputs(){
+      const jeb = [parseScoreVal('jeb-s1'), parseScoreVal('jeb-s2'), parseScoreVal('jeb-s3')];
+      const gpc = [parseScoreVal('gpc-s1'), parseScoreVal('gpc-s2'), parseScoreVal('gpc-s3')];
+      let jebSets = 0, gpcSets = 0;
+      for(let i=0;i<3;i++){
+        const a = jeb[i], b = gpc[i];
+        if(a == null || b == null) continue;
+        if(a > b) jebSets++;
+        else if(b > a) gpcSets++;
+      }
+      const winner = jebSets >= 2 ? TEAMS.JEB.id : (gpcSets >= 2 ? TEAMS.GPC.id : '');
+      return { jeb, gpc, jebSets, gpcSets, winner };
+    }
+
+    function updateComputedWinnerDisplay(){
+      const { jebSets, gpcSets, winner } = computeSetsAndWinnerFromInputs();
+      document.getElementById('jeb-sets-won').textContent = jebSets;
+      document.getElementById('gpc-sets-won').textContent = gpcSets;
+      document.getElementById('winner').value = winner ? (winner === TEAMS.JEB.id ? `${TEAMS.JEB.label} (Janne & Max)` : `${TEAMS.GPC.label} (Miiku & Timi)`) : '';
+      document.getElementById('label-jeb').classList.toggle('winner-star', winner === TEAMS.JEB.id);
+      document.getElementById('label-gpc').classList.toggle('winner-star', winner === TEAMS.GPC.id);
+    }
+
+    ['jeb-s1','jeb-s2','jeb-s3','gpc-s1','gpc-s2','gpc-s3'].forEach(id=>{
+      document.getElementById(id).addEventListener('input', updateComputedWinnerDisplay);
+    });
+
+    // ---------- Matches list & history rendering ----------
+    function renderMatchesTable(){
+      const tbody = document.querySelector('#matches-table tbody');
+      tbody.innerHTML = '';
+      const allMatches = matches.slice().sort((a,b) => {
+        const da = a.date || '';
+        const db = b.date || '';
+        if(db !== da) return db.localeCompare(da);
+        return (b.createdAt||'').localeCompare(a.createdAt||'');
+      });
+
+      const { filteredMatches } = filterMatchesAndEvents();
+      if(filteredMatches.length === 0){
+        const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 6; td.className='small'; td.textContent = 'No matches for current filter/search.'; tr.appendChild(td); tbody.appendChild(tr); return;
+      }
+
+      filteredMatches.forEach(m=>{
+        const tr = document.createElement('tr'); if(m.winner) tr.classList.add('played-row');
+
+        // date + season name
+        const dateCell = document.createElement('td');
+        const d = document.createElement('div'); d.textContent = displayDate(m.date || '');
+        const season = seasons.find(s => s.id === m.seasonId);
+        const sname = season ? season.name : '(no season)';
+        const ssmall = document.createElement('div'); ssmall.className='small'; ssmall.textContent = sname;
+        dateCell.appendChild(d); dateCell.appendChild(ssmall);
+        if(m.seasonId === currentSeasonId){ const badge = document.createElement('div'); badge.className='season-badge'; badge.textContent='Current'; dateCell.appendChild(badge); }
+        tr.appendChild(dateCell);
+
+        // score table: per-team rows, and sets-won badges are inside these rows so vertical alignment is guaranteed
+        const scoreCell = document.createElement('td');
+        scoreCell.innerHTML = `
+          <table class="score-table" style="margin:0">
+            <tbody>
+              <tr>
+                <td style="text-align:left"><strong>${TEAMS.JEB.label}${m.winner===TEAMS.JEB.id?'*':''}</strong></td>
+                <td>${m.jeb?.[0] ?? ''}</td><td>${m.jeb?.[1] ?? ''}</td><td>${m.jeb?.[2] ?? ''}</td>
+                <td><span class="sets-won-badge">${m.jebSets ?? 0}</span></td>
+              </tr>
+              <tr>
+                <td style="text-align:left"><strong>${TEAMS.GPC.label}${m.winner===TEAMS.GPC.id?'*':''}</strong></td>
+                <td>${m.gpc?.[0] ?? ''}</td><td>${m.gpc?.[1] ?? ''}</td><td>${m.gpc?.[2] ?? ''}</td>
+                <td><span class="sets-won-badge">${m.gpcSets ?? 0}</span></td>
+              </tr>
+            </tbody>
+          </table>`;
+        tr.appendChild(scoreCell);
+
+        // winner
+        const winnerCell = document.createElement('td');
+        if(m.winner){ const wlabel = m.winner === TEAMS.JEB.id ? `${TEAMS.JEB.label}*` : `${TEAMS.GPC.label}*`; winnerCell.innerHTML = `<span class="winner-badge">${wlabel}</span>`; } else { winnerCell.textContent = ''; }
+        tr.appendChild(winnerCell);
+
+        // paid by, notes
+        const paidCell = document.createElement('td'); paidCell.textContent = m.paidBy || ''; tr.appendChild(paidCell);
+        const notesCell = document.createElement('td'); notesCell.textContent = m.notes || ''; tr.appendChild(notesCell);
+
+        const actionsCell = document.createElement('td');
+        const editBtn = document.createElement('button'); editBtn.className='secondary'; editBtn.style.padding='6px 8px'; editBtn.textContent='Edit'; editBtn.onclick = ()=> editMatch(m.id);
+        const delBtn = document.createElement('button'); delBtn.className='danger'; delBtn.style.padding='6px 8px'; delBtn.textContent='Delete'; delBtn.onclick = ()=> { if(confirm('Delete match?')) { matches = matches.filter(x=>x.id!==m.id); saveAll(); renderAll(); } };
+        actionsCell.appendChild(editBtn); actionsCell.appendChild(document.createTextNode(' ')); actionsCell.appendChild(delBtn);
+        tr.appendChild(actionsCell);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ---------- Render upcoming + events on calendar + list ----------
+    function renderUpcomingList(){
+      const list = document.getElementById('upcoming-list');
+      list.innerHTML = '';
+      const ordered = events.slice().sort((a,b)=> (a.date||'').localeCompare(b.date||'') || (a.createdAt||'').localeCompare(b.createdAt||''));
+      if(ordered.length===0){ list.innerHTML = '<div class="small">No upcoming matches or events.</div>'; return; }
+      ordered.forEach(ev=>{
+        const row = document.createElement('div'); row.className = 'event-row';
+        const meta = document.createElement('div'); meta.className='event-meta';
+        const date = document.createElement('div'); date.style.fontWeight='700'; date.textContent = displayDate(ev.date || '');
+        const title = document.createElement('div'); title.innerHTML = `<div style="font-weight:700">${ev.title || ''}</div><div class="small">${ev.notes || ''}</div>`;
+        meta.appendChild(date); meta.appendChild(title);
+        const actions = document.createElement('div'); actions.style.display='flex'; actions.style.gap='6px';
+        const rec = document.createElement('button'); rec.className='secondary'; rec.textContent='Record result'; rec.onclick = ()=> { openRecordFormForDate(ev.date); };
+        const edit = document.createElement('button'); edit.className='secondary'; edit.textContent='Edit'; edit.onclick = ()=> editEvent(ev.id);
+        const del = document.createElement('button'); del.className='danger'; del.textContent='Delete'; del.onclick = ()=> { if(confirm('Delete upcoming?')) { events = events.filter(x=>x.id!==ev.id); saveAll(); renderAll(); } };
+        actions.appendChild(rec); actions.appendChild(edit); actions.appendChild(del);
+        row.appendChild(meta); row.appendChild(actions);
+        list.appendChild(row);
+      });
+    }
+
+    // ---------- Matches CRUD and form ----------
+    function openRecordFormForDate(isoDate){
+      clearMatchForm();
+      document.getElementById('date').value = isoDate;
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    document.getElementById('match-form').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      if(!currentSeasonId){ alert('Select or create a season first'); return; }
+      const id = document.getElementById('match-id').value || uid();
+      const date = document.getElementById('date').value;
+      const jeb = [parseScoreVal('jeb-s1'), parseScoreVal('jeb-s2'), parseScoreVal('jeb-s3')].map(v => v==null?'' : v);
+      const gpc = [parseScoreVal('gpc-s1'), parseScoreVal('gpc-s2'), parseScoreVal('gpc-s3')].map(v => v==null?'' : v);
+      let jebSets=0, gpcSets=0;
+      for(let i=0;i<3;i++){
+        if(jeb[i]===''||gpc[i]==='') continue;
+        if(Number(jeb[i]) > Number(gpc[i])) jebSets++; else if(Number(gpc[i])>Number(jeb[i])) gpcSets++;
+      }
+      const winner = jebSets>=2 ? TEAMS.JEB.id : (gpcSets>=2 ? TEAMS.GPC.id : '');
+      const match = { id, date, jeb, gpc, jebSets, gpcSets, winner, paidBy: document.getElementById('paidBy').value || '', notes: document.getElementById('notes').value.trim(), seasonId: currentSeasonId, createdAt: new Date().toISOString() };
+      const idx = matches.findIndex(m=>m.id===id);
+      if(idx>=0) matches[idx]=match; else matches.push(match);
+      // optionally remove an event on same date? keep events as-is; user can delete.
+      saveAll(); renderAll(); clearMatchForm();
+    });
+
+    function editMatch(id){
+      const m = matches.find(x=>x.id===id);
+      if(!m) return;
+      document.getElementById('match-id').value = m.id;
+      document.getElementById('date').value = m.date || '';
+      ['jeb-s1','jeb-s2','jeb-s3'].forEach((k,i)=> document.getElementById(k).value = m.jeb?.[i] ?? '');
+      ['gpc-s1','gpc-s2','gpc-s3'].forEach((k,i)=> document.getElementById(k).value = m.gpc?.[i] ?? '');
+      document.getElementById('paidBy').value = m.paidBy || '';
+      document.getElementById('notes').value = m.notes || '';
+      updateComputedWinnerDisplay();
+      document.getElementById('save-btn').textContent = 'Update match';
+      window.scrollTo({top:0,behavior:'smooth'});
+      if(m.seasonId){ currentSeasonId = m.seasonId; seasonSelect.value = currentSeasonId; localStorage.setItem(LS_LAST_SEASON, currentSeasonId); }
+    }
+
+    function clearMatchForm(){
+      document.getElementById('match-id').value = '';
+      document.getElementById('match-form').reset();
+      ['jeb-s1','jeb-s2','jeb-s3','gpc-s1','gpc-s2','gpc-s3'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('jeb-sets-won').textContent='0';
+      document.getElementById('gpc-sets-won').textContent='0';
+      document.getElementById('winner').value='';
+      document.getElementById('save-btn').textContent='Save match';
+      document.getElementById('label-jeb').classList.remove('winner-star');
+      document.getElementById('label-gpc').classList.remove('winner-star');
+    }
+
+    document.getElementById('clear-btn').addEventListener('click', clearMatchForm);
+
+    // ---------- Edit event helper ----------
+    function editEvent(id){
+      const ev = events.find(x=>x.id===id); if(!ev) return;
+      showEventForm(ev);
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    // ---------- CSV export ----------
+    document.getElementById('export-csv').addEventListener('click', ()=>{
+      if(matches.length===0){ alert('No matches to export'); return; }
+      const header=['id','seasonId','seasonName','date','jeb_s1','jeb_s2','jeb_s3','gpc_s1','gpc_s2','gpc_s3','jebSets','gpcSets','winner','paidBy','notes','createdAt'];
+      const rows = matches.map(m=>{
+        const season=seasons.find(s=>s.id===m.seasonId); const seasonName=season?season.name:'';
+        const vals=[m.id,m.seasonId,seasonName,m.date,m.jeb?.[0]??'',m.jeb?.[1]??'',m.jeb?.[2]??'',m.gpc?.[0]??'',m.gpc?.[1]??'',m.gpc?.[2]??'',m.jebSets??'',m.gpcSets??'',m.winner??'',m.paidBy??'',m.notes??'',m.createdAt??''];
+        return vals.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+      });
+      const csv=[header.join(','),...rows].join('\n');
+      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download='padel-matches.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+
+    // ---------- Render everything ----------
+    function renderAll(){
+      populateSeasonsUI();
+      renderCalendar();
+      renderUpcomingList();
+      renderMatchesTable();
+      renderRecords();
+      document.getElementById('stored-count').textContent = `${matches.length} total matches`;
+    }
+
+    function renderRecords(){
+      // season record
+      const seasonMatches = matches.filter(m=>m.seasonId===currentSeasonId && m.winner);
+      let seasonJeb=0, seasonGpc=0;
+      seasonMatches.forEach(m=>{ if(m.winner===TEAMS.JEB.id) seasonJeb++; if(m.winner===TEAMS.GPC.id) seasonGpc++; });
+      const allMatches = matches.filter(m=>m.winner);
+      let allJeb=0, allGpc=0;
+      allMatches.forEach(m=>{ if(m.winner===TEAMS.JEB.id) allJeb++; if(m.winner===TEAMS.GPC.id) allGpc++; });
+      document.getElementById('season-record').textContent = `${TEAMS.JEB.label} ${seasonJeb}-${seasonGpc}  •  ${TEAMS.GPC.label} ${seasonGpc}-${seasonJeb}`;
+      document.getElementById('alltime-record').textContent = `${TEAMS.JEB.label} ${allJeb}-${allGpc}  •  ${TEAMS.GPC.label} ${allGpc}-${allJeb}`;
+    }
+
+    // ---------- init ----------
+    (function init(){
+      loadAll();
+      populateSeasonsUI();
+      // wire up event storage UI references already done
+      renderAll();
+    })();
+
+    // expose debug
+    window._padel = { matches, seasons, events, renderAll };
+
+  </script>
+</body>
+</html>
