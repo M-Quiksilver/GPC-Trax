@@ -159,15 +159,20 @@
 
     window.dbSignOut = async function(){ try { await fbSignOut(auth); } catch(e){ console.warn(e); } };
 
-    // Firestore helpers (sanitizing id before addDoc)
+    // Firestore helpers (robust: strip undefined fields and remove id before addDoc)
     window.dbSaveMatch = async function(match){
       if (!match) throw new Error('match required');
       const data = { ...match };
+
+      // ensure createdAt
       if (!data.createdAt) data.createdAt = new Date().toISOString();
+
+      // remove undefined values (Firestore rejects undefined)
+      Object.keys(data).forEach(k => { if (data[k] === undefined) delete data[k]; });
 
       if (data.id) {
         const id = data.id;
-        delete data.id; // remove id field from stored doc fields
+        delete data.id; // don't store id as field
         await setDoc(doc(db, 'matches', id), data);
         return id;
       } else {
@@ -186,6 +191,7 @@
       if (!evt) throw new Error('event required');
       const data = { ...evt };
       if (!data.createdAt) data.createdAt = new Date().toISOString();
+      Object.keys(data).forEach(k => { if (data[k] === undefined) delete data[k]; });
 
       if (data.id) {
         const id = data.id;
@@ -208,6 +214,7 @@
       if (!season) throw new Error('season required');
       const data = { ...season };
       if (!data.createdAt) data.createdAt = new Date().toISOString();
+      Object.keys(data).forEach(k => { if (data[k] === undefined) delete data[k]; });
 
       if (data.id) {
         const id = data.id;
@@ -221,7 +228,7 @@
       }
     };
 
-    // One-time migration helper (uses the sanitized helpers above)
+    // One-time migration helper uses the sanitized helpers above
     window.dbMigrateLocalToFirestore = async function(){
       if(!confirm('Upload local matches, seasons and events to Firestore?')) return;
       const LS_MATCHES = 'padel.matches.v4.seasoned';
