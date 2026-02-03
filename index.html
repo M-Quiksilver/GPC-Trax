@@ -159,54 +159,69 @@
 
     window.dbSignOut = async function(){ try { await fbSignOut(auth); } catch(e){ console.warn(e); } };
 
-    // Firestore helpers
+    // Firestore helpers (sanitizing id before addDoc)
     window.dbSaveMatch = async function(match){
       if (!match) throw new Error('match required');
-      if (!match.createdAt) match.createdAt = new Date().toISOString();
-      if (match.id){
-        await setDoc(doc(db,'matches',match.id), match);
-        return match.id;
+      const data = { ...match };
+      if (!data.createdAt) data.createdAt = new Date().toISOString();
+
+      if (data.id) {
+        const id = data.id;
+        delete data.id; // remove id field from stored doc fields
+        await setDoc(doc(db, 'matches', id), data);
+        return id;
       } else {
-        const ref = await addDoc(collection(db,'matches'), match);
+        if ('id' in data) delete data.id;
+        const ref = await addDoc(collection(db, 'matches'), data);
         return ref.id;
       }
     };
 
     window.dbDeleteMatch = async function(id){
       if (!id) throw new Error('id required');
-      await deleteDoc(doc(db,'matches', id));
+      await deleteDoc(doc(db, 'matches', id));
     };
 
     window.dbSaveEvent = async function(evt){
       if (!evt) throw new Error('event required');
-      if (!evt.createdAt) evt.createdAt = new Date().toISOString();
-      if (evt.id){
-        await setDoc(doc(db,'events',evt.id), evt);
-        return evt.id;
+      const data = { ...evt };
+      if (!data.createdAt) data.createdAt = new Date().toISOString();
+
+      if (data.id) {
+        const id = data.id;
+        delete data.id;
+        await setDoc(doc(db, 'events', id), data);
+        return id;
       } else {
-        const ref = await addDoc(collection(db,'events'), evt);
+        if ('id' in data) delete data.id;
+        const ref = await addDoc(collection(db, 'events'), data);
         return ref.id;
       }
     };
 
     window.dbDeleteEvent = async function(id){
       if (!id) throw new Error('id required');
-      await deleteDoc(doc(db,'events', id));
+      await deleteDoc(doc(db, 'events', id));
     };
 
     window.dbSaveSeason = async function(season){
       if (!season) throw new Error('season required');
-      if (!season.createdAt) season.createdAt = new Date().toISOString();
-      if (season.id){
-        await setDoc(doc(db,'seasons',season.id), season);
-        return season.id;
+      const data = { ...season };
+      if (!data.createdAt) data.createdAt = new Date().toISOString();
+
+      if (data.id) {
+        const id = data.id;
+        delete data.id;
+        await setDoc(doc(db, 'seasons', id), data);
+        return id;
       } else {
-        const ref = await addDoc(collection(db,'seasons'), season);
+        if ('id' in data) delete data.id;
+        const ref = await addDoc(collection(db, 'seasons'), data);
         return ref.id;
       }
     };
 
-    // One-time migration helper
+    // One-time migration helper (uses the sanitized helpers above)
     window.dbMigrateLocalToFirestore = async function(){
       if(!confirm('Upload local matches, seasons and events to Firestore?')) return;
       const LS_MATCHES = 'padel.matches.v4.seasoned';
@@ -217,16 +232,13 @@
       const localEvents = JSON.parse(localStorage.getItem(LS_EVENTS) || '[]');
       try {
         for (const s of localSeasons) {
-          if (s.id) await setDoc(doc(db,'seasons',s.id), s);
-          else await addDoc(collection(db,'seasons'), s);
+          await window.dbSaveSeason(s);
         }
         for (const m of localMatches) {
-          if (m.id) await setDoc(doc(db,'matches',m.id), m);
-          else await addDoc(collection(db,'matches'), m);
+          await window.dbSaveMatch(m);
         }
         for (const ev of localEvents) {
-          if (ev.id) await setDoc(doc(db,'events',ev.id), ev);
-          else await addDoc(collection(db,'events'), ev);
+          await window.dbSaveEvent(ev);
         }
         alert('Migration complete.');
       } catch (err) {
