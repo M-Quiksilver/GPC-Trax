@@ -28,7 +28,16 @@
     .team img{width:64px;height:64px;object-fit:contain;border-radius:8px;border:2px solid rgba(5,74,42,0.06);background:#fff;padding:6px}
     .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .calendar-wrap{margin-top:12px}
-    .cal-controls{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+    /* allow controls to wrap so the instruction text doesn't overflow on small screens */
+    .cal-controls{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap}
+    .cal-controls .left{display:flex;gap:8px;align-items:center}
+    .cal-controls .right{flex: 1 1 320px; text-align:right}
+    /* on small screens place the instructional text below the controls */
+    @media (max-width:640px){
+      .cal-controls .right{order:2;flex-basis:100%;text-align:left;margin-top:8px}
+      .cal-controls .left{order:1;flex-basis:100%}
+    }
+
     .month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
     .day{background:#fff;border-radius:8px;padding:8px;min-height:64px;box-shadow:0 2px 8px rgba(2,6,23,0.04);position:relative}
     .day.dim{opacity:0.62}
@@ -39,7 +48,7 @@
     .pill.event{background:linear-gradient(90deg,rgba(14,90,45,0.12),rgba(242,194,0,0.05));border:1px solid rgba(10,107,60,0.06)}
     form .grid{display:grid;gap:10px}
     label{display:block;font-size:0.9rem;color:var(--muted);margin-bottom:6px}
-    /* avoid applying width:100% to the score inputs by overriding more specifically later */
+    /* default inputs (full width for most) */
     input[type="text"], input[type="date"], input[type="number"], textarea, select{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(5,74,42,0.06);background:#fff;font-size:0.95rem}
     input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     input[type=number]{-moz-appearance:textfield}
@@ -48,26 +57,32 @@
     button.secondary{background:transparent;color:var(--gpc-dark);border:1px solid rgba(5,74,42,0.12);padding:8px 10px}
     button.danger{background:var(--danger)}
     table{width:100%;border-collapse:collapse;margin-top:12px;font-size:0.95rem}
-    th,td{padding:8px 10px;border-bottom:1px solid rgba(5,74,42,0.06);vertical-align:top;text-align:left}
+    th,td{padding:8px 10px;border-bottom:1px solid rgba(5,74,42,0.06);vertical-align:middle;text-align:left}
     .score-table{border-collapse:collapse;width:100%;max-width:720px;margin-top:6px}
     .score-table th,.score-table td{border:1px solid rgba(5,74,42,0.06);padding:6px;text-align:center}
-    /* Narrow inputs for single-digit scores
-       We must override the global input width:100% (above).
-       Use a specific selector so it wins. */
+    /* Compact score inputs:
+       desktop: ~30px (comfortable while not excessive)
+       mobile: ~36px (touch friendly) */
     input.score-input {
-      width: 20px !important;
-      min-width: 20px;
-      max-width: 24px;
+      width: 30px !important;
+      min-width: 28px;
+      max-width: 40px;
       padding: 6px !important;
       box-sizing: border-box;
       text-align:center;
       font-weight:700;
       display:inline-block;
+      vertical-align:middle;
       margin: 0;
       font-size: 0.95rem;
+      border-radius:6px;
     }
-    /* Ensure table cells don't stretch input by centering */
+    @media (max-width:820px){
+      input.score-input { width: 36px !important; min-width: 32px; max-width: 44px; }
+    }
+    /* Ensure table cells don't force inputs to stretch */
     .score-table td { white-space: nowrap; }
+
     .sets-won-badge{display:inline-flex;align-items:center;justify-content:center;padding:6px 8px;border-radius:8px;background:rgba(15,139,70,0.12);border:1px solid rgba(15,139,70,0.28);color:var(--gpc-dark);font-weight:800;min-width:28px;height:32px;line-height:1;box-sizing:border-box}
     .winner-badge{font-weight:900;color:var(--gpc-dark);background:linear-gradient(90deg,rgba(15,139,70,0.12),rgba(230,182,0,0.06));padding:6px 10px;border-radius:10px;display:inline-block}
     .season-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(230,182,0,0.12);color:var(--gpc-dark);font-weight:700;font-size:0.85rem;margin-top:6px}
@@ -75,19 +90,7 @@
     .event-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px;border-radius:8px;background:linear-gradient(180deg,#fff,#fbfffb);border:1px solid rgba(5,74,42,0.03)}
     /* make history table horizontally scrollable on small screens */
     .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
-    @media (max-width:820px){
-      .teams-inline{flex-direction:column;align-items:flex-start;gap:8px}
-      .team img{width:54px;height:54px}
-      /* on small screens use slightly larger score inputs */
-      input.score-input { width: 28px !important; min-width: 24px; max-width: 28px; }
-      .month-grid{grid-template-columns:repeat(7,1fr)}
-    }
-    /* Collapse calendar by default on narrow screens to save space */
-    @media (max-width:700px) {
-      #calendar-body{ display: none; }
-    }
-    /* hidden helper */
-    .hidden { display: none; }
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
@@ -348,21 +351,20 @@
             <option value="all">All seasons</option>
             <option value="current">Only current season</option>
           </select>
-          <!-- search box removed per request -->
         </div>
       </div>
     </section>
 
     <section class="card calendar-wrap">
       <div class="cal-controls">
-        <div style="display:flex;gap:8px;align-items:center">
+        <div class="left">
           <button id="prev-month" class="secondary">◀</button>
           <div id="month-label" class="small" style="min-width:160px;text-align:center;font-weight:800"></div>
           <button id="next-month" class="secondary">▶</button>
           <button id="today-btn" class="secondary">Today</button>
           <button id="toggle-calendar" class="secondary" style="margin-left:8px">Hide calendar</button>
         </div>
-        <div class="small">Click a date to add an upcoming match / event; click an item to edit or record result.</div>
+        <div class="right small">Click a date to add an upcoming match / event; click an item to edit or record result.</div>
       </div>
 
       <!-- calendar body wrapped so it can be hidden -->
@@ -449,7 +451,6 @@
               </tr>
             </tbody>
           </table>
-          <!-- explanatory text removed per request -->
         </div>
 
         <div>
@@ -510,8 +511,7 @@
 
     const seasonSelect = document.getElementById('season-select');
     const viewFilter = document.getElementById('view-filter');
-    // searchBox removed; provide a dummy for code compatibility
-    const searchBox = { value: '' };
+    const searchBox = { value: '' }; // dummy (search removed)
 
     document.getElementById('auth-btn').addEventListener('click', async ()=>{
       if(window.currentUser){ await window.dbSignOut(); alert('Signed out'); return; }
@@ -586,7 +586,7 @@
     // Calendar collapse toggle and initial mobile default
     const calendarBody = document.getElementById('calendar-body');
     const toggleBtn = document.getElementById('toggle-calendar');
-    // On small screens hide calendar by default and set button text appropriately
+    // On small screens hide calendar by default (controlled by JS so toggle works)
     if (window.innerWidth <= 700) {
       calendarBody.classList.add('hidden');
       toggleBtn.textContent = 'Show calendar';
